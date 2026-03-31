@@ -1,44 +1,145 @@
 import { createServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import AddToCartButton from "./AddToCartButton";
+import ImageGallery from "./ImageGallery";
 
 async function getProduct(id: number) {
   const sb = createServerClient();
-  const { data, error } = await sb.from("products").select("id, name, description, brand, is_new, product_variants(id, price, discount, discount_type, size, stock), product_images(id, image_url, sort_order)").eq("id", id).single();
-  const settings = await sb.from("merchant_settings").select("app_name, primary_color, logo").eq("merchant_id", Number(process.env.NEXT_PUBLIC_DEFAULT_MERCHANT_ID || "1")).single();
-  return { product: data, settings: settings.data, error: error?.message };
+  const { data, error } = await sb.from("products").select("id, name, description, brand, is_new, category_id, product_variants(id, price, discount, discount_type, size, stock), product_images(id, image_url, sort_order)").eq("id", id).single();
+  const settings = await sb.from("merchant_settings").select("app_name, primary_color, logo, short_description").eq("merchant_id", Number(process.env.NEXT_PUBLIC_DEFAULT_MERCHANT_ID || "1")).single();
+  const category = data?.category_id ? await sb.from("categories").select("name, full_path").eq("id", data.category_id).single() : null;
+  return { product: data, settings: settings.data, category: category?.data, error: error?.message };
 }
-
-function fmt(n: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n); }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { product, settings, error } = await getProduct(Number(id));
-  const color = settings?.primary_color || "#e94560";
+  const { product, settings, category, error } = await getProduct(Number(id));
+  const accent = settings?.primary_color || "#8B6F4E";
   const name = settings?.app_name || "Appify Store";
-  if (error || !product) return <div className="min-h-screen flex items-center justify-center"><div className="text-center"><h1 className="text-2xl font-bold mb-2">Product not found</h1><Link href="/" className="text-blue-600 underline">Back to store</Link></div></div>;
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ fontFamily: "'Outfit', sans-serif", backgroundColor: "#FDFCFA" }}>
+        <div className="text-center">
+          <h1 className="text-2xl font-light text-stone-900 mb-2" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Product not found</h1>
+          <p className="text-sm text-stone-400 mb-6">This product may have been removed or doesn't exist.</p>
+          <Link href="/" className="px-6 py-2.5 text-xs tracking-[0.15em] uppercase border border-stone-900 text-stone-900 hover:bg-stone-900 hover:text-white transition-all">Back to Store</Link>
+        </div>
+      </div>
+    );
+  }
+
   const images = (product.product_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order);
   const variants = (product.product_variants || []).sort((a: any, b: any) => a.price - b.price);
+
   return (
-    <div>
-      <header className="sticky top-0 z-50 bg-white border-b shadow-sm"><div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between"><Link href="/" className="flex items-center gap-3">{settings?.logo && <img src={settings.logo} alt="" className="w-10 h-10 rounded-lg" />}<span className="text-xl font-bold" style={{ color }}>{name}</span></Link><div className="flex items-center gap-4"><Link href="/cart" className="text-2xl">🛒</Link><Link href="/" className="text-sm text-gray-500 hover:text-gray-900">← Back to store</Link></div></div></header>
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <nav className="text-sm text-gray-400 mb-6"><Link href="/" className="hover:text-gray-600">Home</Link><span className="mx-2">/</span><span className="text-gray-700">{product.name}</span></nav>
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <div className="aspect-square bg-gray-50 rounded-2xl overflow-hidden mb-3"><img src={images[0]?.image_url || "https://placehold.co/600x600/eee/999?text=No+Image"} alt={product.name} className="w-full h-full object-cover" /></div>
-            {images.length > 1 && <div className="flex gap-2">{images.map((img: any) => <div key={img.id} className="w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 cursor-pointer hover:border-gray-400"><img src={img.image_url} alt="" className="w-full h-full object-cover" /></div>)}</div>}
+    <div className="min-h-screen" style={{ backgroundColor: "#FDFCFA" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+      {/* ─── HEADER ─── */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-stone-100">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            {settings?.logo ? (
+              <img src={settings.logo} alt={name} className="w-9 h-9 rounded-full object-cover" />
+            ) : (
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: accent, fontFamily: "'Outfit', sans-serif" }}>
+                {name.charAt(0)}
+              </div>
+            )}
+            <span className="text-2xl font-light tracking-wide text-stone-900" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{name}</span>
+          </Link>
+          <div className="flex items-center gap-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            <Link href="/" className="text-xs tracking-[0.1em] uppercase text-stone-400 hover:text-stone-900 transition-colors">Continue Shopping</Link>
+            <Link href="/cart" className="relative group">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-stone-600 group-hover:text-stone-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+            </Link>
           </div>
-          <div>
-            {product.is_new && <span className="inline-block bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full mb-3">NEW ARRIVAL</span>}
-            <p className="text-sm text-gray-400 mb-1">{product.brand}</p>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">{product.name}</h1>
-            {product.description && <p className="text-gray-600 leading-relaxed mb-6">{product.description}</p>}
-            <AddToCartButton productId={product.id} productName={product.name} variants={variants} firstImage={images[0]?.image_url || ""} color={color} />
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6">
+        {/* ─── BREADCRUMB ─── */}
+        <nav className="py-5 flex items-center gap-2 text-xs tracking-[0.05em]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <Link href="/" className="text-stone-400 hover:text-stone-700 transition-colors">Home</Link>
+          <span className="text-stone-300">/</span>
+          {category && (
+            <>
+              <span className="text-stone-400">{category.name}</span>
+              <span className="text-stone-300">/</span>
+            </>
+          )}
+          <span className="text-stone-700">{product.name}</span>
+        </nav>
+
+        {/* ─── PRODUCT LAYOUT ─── */}
+        <div className="grid md:grid-cols-2 gap-12 pb-20">
+          {/* Left: Images */}
+          <ImageGallery images={images} productName={product.name} accent={accent} />
+
+          {/* Right: Product Info */}
+          <div className="md:py-4">
+            {/* Brand */}
+            <p className="text-xs tracking-[0.2em] uppercase text-stone-400 mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              {product.brand}
+            </p>
+
+            {/* Name */}
+            <h1 className="text-3xl md:text-4xl font-light text-stone-900 tracking-tight mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+              {product.name}
+            </h1>
+
+            {/* Badges */}
+            {product.is_new && (
+              <span className="inline-block text-[10px] tracking-[0.2em] uppercase px-3 py-1.5 mb-5 bg-white border border-stone-200 text-stone-700" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                New Arrival
+              </span>
+            )}
+
+            {/* Description */}
+            {product.description && (
+              <p className="text-sm text-stone-500 leading-relaxed mb-8 max-w-lg" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                {product.description}
+              </p>
+            )}
+
+            {/* Divider */}
+            <div className="border-t border-stone-100 mb-8" />
+
+            {/* Variants + Cart */}
+            <AddToCartButton
+              productId={product.id}
+              productName={product.name}
+              variants={variants}
+              firstImage={images[0]?.image_url || ""}
+              accent={accent}
+            />
+
+            {/* Divider */}
+            <div className="border-t border-stone-100 mt-10 pt-8" />
+
+            {/* Details accordion-style */}
+            <div className="space-y-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <div>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-900 font-medium mb-2">Delivery & Returns</p>
+                <p className="text-xs text-stone-400 leading-relaxed">Free delivery on orders above ₹999. Easy 7-day returns on all products. Cash on delivery available.</p>
+              </div>
+              <div>
+                <p className="text-xs tracking-[0.15em] uppercase text-stone-900 font-medium mb-2">Product Details</p>
+                <p className="text-xs text-stone-400 leading-relaxed">Brand: {product.brand}. {product.description || "Premium quality product."}</p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
-      <footer className="border-t mt-16 py-8 text-center text-gray-400 text-sm">{name} · Powered by Appify</footer>
+
+      {/* ─── FOOTER ─── */}
+      <footer className="border-t border-stone-100 bg-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
+          <p className="text-xs text-stone-300">© 2026 {name}</p>
+          <p className="text-xs text-stone-300">Powered by <span className="text-stone-400">Appify</span></p>
+        </div>
+      </footer>
     </div>
   );
 }

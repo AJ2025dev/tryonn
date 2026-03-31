@@ -4,6 +4,8 @@ import Link from "next/link";
 
 type CartItem = { productId: number; variantId: number; name: string; size: string; price: number; image: string; quantity: number };
 
+function fmt(n: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n); }
+
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -35,80 +37,105 @@ export default function CartPage() {
     });
   }
 
-  function clearCart() {
-    localStorage.removeItem("appify-cart");
-    setCart([]);
-  }
-
-  function fmt(n: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n); }
-
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = subtotal >= 999 ? 0 : 50;
+  const total = subtotal + deliveryFee;
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (!loaded) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">Loading cart...</p></div>;
+  if (!loaded) return <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}><p className="text-stone-400 text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>Loading...</p></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-gray-900">← Back to Store</Link>
-          <span className="text-sm text-gray-500">{itemCount} item{itemCount !== 1 ? "s" : ""} in cart</span>
+    <div className="min-h-screen" style={{ backgroundColor: "#FDFCFA" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-stone-100">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="text-2xl font-light tracking-wide text-stone-900" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Shopping Bag</Link>
+          <Link href="/" className="text-xs tracking-[0.1em] uppercase text-stone-400 hover:text-stone-900 transition-colors" style={{ fontFamily: "'Outfit', sans-serif" }}>Continue Shopping</Link>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Your Cart</h1>
-
+      <main className="max-w-7xl mx-auto px-6 py-10">
         {cart.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl">
-            <p className="text-5xl mb-4">🛒</p>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
-            <p className="text-gray-500 mb-6">Looks like you haven't added anything yet.</p>
-            <Link href="/" className="inline-block px-6 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800">Continue Shopping</Link>
+          <div className="text-center py-24">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 mx-auto mb-6 text-stone-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+            <h2 className="text-3xl font-light text-stone-900 mb-3" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Your bag is empty</h2>
+            <p className="text-sm text-stone-400 mb-8" style={{ fontFamily: "'Outfit', sans-serif" }}>Discover our collections and find something you love.</p>
+            <Link href="/" className="inline-block px-8 py-3 text-xs tracking-[0.2em] uppercase border border-stone-900 text-stone-900 hover:bg-stone-900 hover:text-white transition-all" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              Explore Collection
+            </Link>
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Cart Items */}
-            <div className="md:col-span-2 space-y-4">
-              {cart.map(item => (
-                <div key={item.variantId} className="bg-white rounded-xl p-4 flex gap-4 items-center">
-                  <Link href={`/products/${item.productId}`}>
-                    <img src={item.image || "https://placehold.co/100x100/eee/999?text=..."} alt={item.name} className="w-24 h-24 rounded-lg object-cover flex-shrink-0" />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link href={`/products/${item.productId}`} className="font-semibold text-gray-900 hover:underline block truncate">{item.name}</Link>
-                    <p className="text-sm text-gray-400 mt-1">Size: {item.size}</p>
-                    <p className="font-bold text-gray-900 mt-1">{fmt(item.price)}</p>
+          <div className="grid md:grid-cols-3 gap-12">
+            {/* Items */}
+            <div className="md:col-span-2">
+              <p className="text-xs tracking-[0.15em] uppercase text-stone-400 mb-6" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                {itemCount} item{itemCount !== 1 ? "s" : ""} in your bag
+              </p>
+              <div className="space-y-0 divide-y divide-stone-100">
+                {cart.map(item => (
+                  <div key={item.variantId} className="py-6 flex gap-5">
+                    <Link href={`/products/${item.productId}`} className="flex-shrink-0">
+                      <div className="w-28 h-36 overflow-hidden" style={{ backgroundColor: "#F0EBE3" }}>
+                        <img src={item.image || "https://placehold.co/112x144/F0EBE3/8B6F4E?text=..."} alt={item.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                      </div>
+                    </Link>
+                    <div className="flex-1 flex flex-col justify-between" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      <div>
+                        <Link href={`/products/${item.productId}`} className="text-sm text-stone-900 hover:underline font-medium">{item.name}</Link>
+                        <p className="text-xs text-stone-400 mt-1">Size: {item.size}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center border border-stone-300">
+                          <button onClick={() => updateQty(item.variantId, -1)} className="w-8 h-8 flex items-center justify-center text-stone-600 hover:bg-stone-50 text-sm">−</button>
+                          <span className="w-8 text-center text-xs font-medium text-stone-900 border-x border-stone-300 h-8 flex items-center justify-center">{item.quantity}</span>
+                          <button onClick={() => updateQty(item.variantId, 1)} className="w-8 h-8 flex items-center justify-center text-stone-600 hover:bg-stone-50 text-sm">+</button>
+                        </div>
+                        <button onClick={() => removeItem(item.variantId)} className="text-xs text-stone-400 hover:text-stone-900 underline transition-colors">Remove</button>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      <p className="text-sm font-medium text-stone-900">{fmt(item.price * item.quantity)}</p>
+                      {item.quantity > 1 && <p className="text-xs text-stone-400 mt-1">{fmt(item.price)} each</p>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateQty(item.variantId, -1)} className="w-8 h-8 rounded-lg border text-gray-600 hover:bg-gray-50 flex items-center justify-center">-</button>
-                    <span className="w-10 text-center font-semibold">{item.quantity}</span>
-                    <button onClick={() => updateQty(item.variantId, 1)} className="w-8 h-8 rounded-lg border text-gray-600 hover:bg-gray-50 flex items-center justify-center">+</button>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{fmt(item.price * item.quantity)}</p>
-                    <button onClick={() => removeItem(item.variantId)} className="text-xs text-red-500 hover:text-red-700 mt-1">Remove</button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={clearCart} className="text-sm text-gray-400 hover:text-red-500">Clear entire cart</button>
+                ))}
+              </div>
             </div>
 
-            {/* Order Summary */}
-            <div className="bg-white rounded-xl p-6 h-fit sticky top-20">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h2>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Subtotal ({itemCount} items)</span><span className="font-semibold">{fmt(subtotal)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span className="text-green-600 font-semibold">{subtotal >= 999 ? "FREE" : fmt(50)}</span></div>
-                <div className="border-t pt-3 flex justify-between"><span className="font-bold text-gray-900">Total</span><span className="font-bold text-lg text-gray-900">{fmt(subtotal + (subtotal >= 999 ? 0 : 50))}</span></div>
+            {/* Summary */}
+            <div className="md:sticky md:top-24 h-fit" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <div className="border border-stone-200 p-8">
+                <h2 className="text-xs tracking-[0.2em] uppercase text-stone-900 font-medium mb-6">Order Summary</h2>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between text-stone-500"><span>Subtotal</span><span className="text-stone-900">{fmt(subtotal)}</span></div>
+                  <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={deliveryFee === 0 ? "text-green-700" : "text-stone-900"}>{deliveryFee === 0 ? "Complimentary" : fmt(deliveryFee)}</span></div>
+                  <div className="border-t border-stone-200 pt-3 flex justify-between">
+                    <span className="text-stone-900 font-medium">Total</span>
+                    <span className="text-stone-900 font-medium text-lg" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{fmt(total)}</span>
+                  </div>
+                </div>
+                {subtotal > 0 && subtotal < 999 && (
+                  <p className="text-[11px] text-stone-400 mt-3">Add {fmt(999 - subtotal)} more for complimentary delivery</p>
+                )}
+                <Link href="/checkout" className="block mt-6 w-full py-3.5 text-center text-xs tracking-[0.2em] uppercase bg-stone-900 text-white hover:bg-stone-800 transition-colors">
+                  Proceed to Checkout
+                </Link>
+                <Link href="/" className="block mt-3 text-center text-xs text-stone-400 hover:text-stone-700 transition-colors">
+                  Continue Shopping
+                </Link>
               </div>
-              {subtotal < 999 && <p className="text-xs text-gray-400 mt-2">Add {fmt(999 - subtotal)} more for free delivery</p>}
-              <Link href="/checkout" className="block mt-6 w-full py-3 bg-gray-900 text-white text-center rounded-xl font-bold hover:bg-gray-800 transition-colors">Proceed to Checkout</Link>
-              <Link href="/" className="block mt-3 text-center text-sm text-gray-500 hover:text-gray-700">Continue Shopping</Link>
             </div>
           </div>
         )}
       </main>
+
+      <footer className="border-t border-stone-100 bg-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
+          <p className="text-xs text-stone-300">© 2026</p>
+          <p className="text-xs text-stone-300">Powered by <span className="text-stone-400">Appify</span></p>
+        </div>
+      </footer>
     </div>
   );
 }
