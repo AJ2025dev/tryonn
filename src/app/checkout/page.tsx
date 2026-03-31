@@ -1,12 +1,19 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { createClient } from "@supabase/supabase-js";
 
 type CartItem = { productId: number; variantId: number; name: string; size: string; price: number; image: string; quantity: number };
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 function fmt(n: number) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n); }
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -37,31 +44,127 @@ export default function CheckoutPage() {
     return null;
   }
 
-  async function placeOrder() {
+  function generateOrderNo() {
+    const d = new Date();
+    return `APP-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*10000)).padStart(4,"0")}`;
+  }
+
+  async function saveOrder(paymentRef: string = "", status: number = 1, statusDesc: string = "Placed") {
+    const merchantId = Number(process.env.NEXT_PUBLIC_DEFAULT_MERCHANT_ID || "1");
+    const oNo = generateOrderNo();
+
+    const { data: addr, error: addrErr } = await supabase.from("addresses").insert({ link_id: merchantId, link_type: "customer", house_no: form.houseNo, address1: form.address1, address2: form.address2, landmark: form.landmark, city: form.city, state: form.state, country: "India", zip_code: form.pincode, is_default: true, is_active: true }).select("id").single();
+    if (addrErr) throw new Error("Failed to save address: " + addrErr.message);
+
+    const { data: order, error: orderErr } = await supabase.from("orders").insert({ merchant_id: merchantId, order_no: oNo, order_date: new Date().toISOString(), order_placed_date: new Date().toISOString(), status, status_description: statusDesc, order_amount: subtotal, discount_amount: 0, tax_amount: 0, delivery_cost: deliveryFee, total_amount: total, address_id: addr.id, shipping_address: `${form.houseNo}, ${form.address1}, ${form.address2}, ${form.city}, ${form.state} - ${form.pincode}`, payment_type: form.paymentMethod === "cod" ? 1 : 2, payment_reference_no: paymentRef, first_name: form.firstName, last_name: form.lastName, delivery_channel: 1, delivery_channel_description: "Standard" }).select("id").single();
+    if (orderErr) throw new Error("Failed to create order: " + orderErr.message);
+
+    const items = cart.map(item => ({ order_id: order.id, product_id: item.productId, variant_id: item.variantId, product_description: item.name, size: item.size, quantity: item.quantity, unit_price: item.price, selling_price: item.price, image_url: item.image }));
+    const { error: itemsErr } = await supabase.from("order_items").insert(items);
+    if (itemsErr) throw new Error("Failed to save items: " + itemsErr.message);
+
+    return { orderId: order.id, orderNo: oNo };
+  }
+
+  async function handleCOD() {
+    setPlacing(true); setError("");
+    try {
+      const result = await saveOrder("", 1, "Placed");
+      localStorage.removeItem("appify-cart"); setCart([]);
+      setOrderId(result.orderId); setOrderNo(result.orderNo);
+    } catch (e: any) { setError(e.message); }
+    setPlacing(false);
+  }
+
+  async function handleRazorpay() {
     const err = validate();
     if (err) { setError(err); return; }
     setError(""); setPlacing(true);
+
     try {
-      const merchantId = Number(process.env.NEXT_PUBLIC_DEFAULT_MERCHANT_ID || "1");
-      const d = new Date();
-      const oNo = `APP-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*10000)).padStart(4,"0")}`;
-      const { data: addr, error: addrErr } = await supabase.from("addresses").insert({ link_id: merchantId, link_type: "customer", house_no: form.houseNo, address1: form.address1, address2: form.address2, landmark: form.landmark, city: form.city, state: form.state, country: "India", zip_code: form.pincode, is_default: true, is_active: true }).select("id").single();
-      if (addrErr) throw new Error("Failed to save address: " + addrErr.message);
-      const { data: order, error: orderErr } = await supabase.from("orders").insert({ merchant_id: merchantId, order_no: oNo, order_date: new Date().toISOString(), order_placed_date: new Date().toISOString(), status: 1, status_description: "Placed", order_amount: subtotal, discount_amount: 0, tax_amount: 0, delivery_cost: deliveryFee, total_amount: total, address_id: addr.id, shipping_address: `${form.houseNo}, ${form.address1}, ${form.address2}, ${form.city}, ${form.state} - ${form.pincode}`, payment_type: form.paymentMethod === "cod" ? 1 : 2, payment_reference_no: "", first_name: form.firstName, last_name: form.lastName, delivery_channel: 1, delivery_channel_description: "Standard" }).select("id").single();
-      if (orderErr) throw new Error("Failed to create order: " + orderErr.message);
-      const items = cart.map(item => ({ order_id: order.id, product_id: item.productId, variant_id: item.variantId, product_description: item.name, size: item.size, quantity: item.quantity, unit_price: item.price, selling_price: item.price, image_url: item.image }));
-      const { error: itemsErr } = await supabase.from("order_items").insert(items);
-      if (itemsErr) throw new Error("Failed to save items: " + itemsErr.message);
-      localStorage.removeItem("appify-cart"); setCart([]); setOrderId(order.id); setOrderNo(oNo);
-    } catch (e: any) { setError(e.message || "Something went wrong"); }
-    setPlacing(false);
+      // 1. Create Razorpay order via our API
+      const res = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: total, receipt: `order_${Date.now()}` }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // 2. Open Razorpay popup
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: data.currency,
+        name: "StyleVault",
+        description: `Order - ${itemCount} item${itemCount > 1 ? "s" : ""}`,
+        order_id: data.orderId,
+        handler: async function (response: any) {
+          try {
+            // 3. Save order to Supabase
+            const result = await saveOrder(response.razorpay_payment_id, 2, "Payment Confirmed");
+
+            // 4. Verify payment
+            await fetch("/api/razorpay/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                order_id: result.orderId,
+              }),
+            });
+
+            localStorage.removeItem("appify-cart"); setCart([]);
+            setOrderId(result.orderId); setOrderNo(result.orderNo);
+          } catch (e: any) {
+            setError("Payment received but order save failed. Contact support.");
+          }
+          setPlacing(false);
+        },
+        prefill: {
+          name: `${form.firstName} ${form.lastName}`.trim(),
+          contact: form.phone,
+        },
+        theme: {
+          color: "#1C1917",
+        },
+        modal: {
+          ondismiss: function () {
+            setPlacing(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response: any) {
+        setError(`Payment failed: ${response.error.description}`);
+        setPlacing(false);
+      });
+      rzp.open();
+    } catch (e: any) {
+      setError(e.message || "Payment initiation failed");
+      setPlacing(false);
+    }
+  }
+
+  async function placeOrder() {
+    const err = validate();
+    if (err) { setError(err); return; }
+
+    if (form.paymentMethod === "cod") {
+      handleCOD();
+    } else {
+      handleRazorpay();
+    }
   }
 
   const inputClass = "w-full px-4 py-3 border border-stone-200 text-sm text-stone-900 bg-white placeholder:text-stone-400 focus:outline-none focus:border-stone-500 transition-colors";
 
   if (!loaded) return <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}><p className="text-stone-400 text-sm">Loading...</p></div>;
 
-  // ─── SUCCESS SCREEN ───
+  // ─── SUCCESS ───
   if (orderId) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: "#FDFCFA" }}>
@@ -76,7 +179,7 @@ export default function CheckoutPage() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between"><span className="text-stone-400">Order Number</span><span className="text-stone-900 font-medium">{orderNo}</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Total</span><span className="text-stone-900 font-medium">{fmt(total)}</span></div>
-              <div className="flex justify-between"><span className="text-stone-400">Payment</span><span className="text-stone-900">{form.paymentMethod === "cod" ? "Cash on Delivery" : "Online"}</span></div>
+              <div className="flex justify-between"><span className="text-stone-400">Payment</span><span className="text-stone-900">{form.paymentMethod === "cod" ? "Cash on Delivery" : "Paid Online"}</span></div>
               <div className="flex justify-between"><span className="text-stone-400">Delivery To</span><span className="text-stone-900 text-right max-w-[200px]">{form.city}, {form.state}</span></div>
             </div>
           </div>
@@ -88,7 +191,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // ─── EMPTY CART ───
+  // ─── EMPTY ───
   if (cart.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}>
@@ -102,10 +205,11 @@ export default function CheckoutPage() {
     );
   }
 
-  // ─── CHECKOUT FORM ───
+  // ─── CHECKOUT ───
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FDFCFA" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -118,7 +222,6 @@ export default function CheckoutPage() {
         {error && <div className="mb-8 p-4 border border-red-200 text-sm text-red-700 bg-red-50/50">{error}</div>}
 
         <div className="grid md:grid-cols-3 gap-12">
-          {/* Form */}
           <div className="md:col-span-2 space-y-10">
             {/* Contact */}
             <div>
@@ -156,7 +259,10 @@ export default function CheckoutPage() {
                 </label>
                 <label className={`flex items-center gap-4 p-4 border cursor-pointer transition-all ${form.paymentMethod === "online" ? "border-stone-900 bg-stone-50/50" : "border-stone-200 hover:border-stone-400"}`}>
                   <input type="radio" name="payment" checked={form.paymentMethod === "online"} onChange={() => updateField("paymentMethod", "online")} className="w-4 h-4 accent-stone-900" />
-                  <div><p className="text-sm text-stone-900">Pay Online</p><p className="text-[11px] text-stone-400">UPI, Cards, Net Banking — coming soon</p></div>
+                  <div>
+                    <p className="text-sm text-stone-900">Pay Online</p>
+                    <p className="text-[11px] text-stone-400">UPI, Cards, Net Banking, Wallets via Razorpay</p>
+                  </div>
                 </label>
               </div>
             </div>
@@ -185,10 +291,20 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={deliveryFee === 0 ? "text-green-700" : "text-stone-900"}>{deliveryFee === 0 ? "Complimentary" : fmt(deliveryFee)}</span></div>
                 <div className="border-t border-stone-200 pt-3 flex justify-between"><span className="text-stone-900 font-medium">Total</span><span className="text-stone-900 font-medium text-lg" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{fmt(total)}</span></div>
               </div>
-              <button onClick={placeOrder} disabled={placing || form.paymentMethod === "online"} className="mt-6 w-full py-3.5 text-xs tracking-[0.2em] uppercase bg-stone-900 text-white hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {placing ? "Processing..." : form.paymentMethod === "online" ? "Online Payment Coming Soon" : `Place Order — ${fmt(total)}`}
+              <button
+                onClick={placeOrder}
+                disabled={placing}
+                className="mt-6 w-full py-3.5 text-xs tracking-[0.2em] uppercase bg-stone-900 text-white hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {placing
+                  ? "Processing..."
+                  : form.paymentMethod === "online"
+                  ? `Pay ${fmt(total)}`
+                  : `Place Order — ${fmt(total)}`
+                }
               </button>
               {form.paymentMethod === "cod" && <p className="text-[11px] text-stone-400 text-center mt-3">Pay {fmt(total)} at delivery</p>}
+              {form.paymentMethod === "online" && <p className="text-[11px] text-stone-400 text-center mt-3">Secure payment via Razorpay</p>}
             </div>
           </div>
         </div>
