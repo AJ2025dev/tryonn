@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+function PreviewContent() {
 "use client";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -5,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-export default function PreviewPage() {
+function PreviewInner() {
   const params = useSearchParams();
   const merchantId = params.get("merchant");
   const [settings, setSettings] = useState<any>(null);
@@ -111,5 +114,14 @@ export default function PreviewPage() {
         <iframe src={previewUrl} className="w-full h-full" title="Store Preview" />
       </div>
     </div>
+  );
+}
+
+
+export default function PreviewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}><div className="inline-block animate-spin w-8 h-8 border-2 border-stone-300 border-t-stone-900 rounded-full" /></div>}>
+      <PreviewInner />
+    </Suspense>
   );
 }
