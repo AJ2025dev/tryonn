@@ -90,7 +90,7 @@ export default async function Home() {
             <div className="grid md:grid-cols-2 gap-8 items-center min-h-[520px]">
               <div className="py-16 md:py-24">
                 <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ fontFamily: `'${bodyFont}', sans-serif`, color: accent }}>{heroText}</p>
-                <h1 className="text-5xl md:text-7xl font-light text-stone-900 leading-[1.1] mb-6 tracking-tight">Discover<br /><span className="italic font-normal" style={{ color: accent }}>Timeless</span><br />Style</h1>
+                <h1 className="text-5xl md:text-7xl font-light text-stone-900 leading-[1.1] mb-6 tracking-tight">{designSpec?.heroHeadline1 || "Discover"}<br /><span className="italic font-normal" style={{ color: accent }}>{designSpec?.heroHeadline2 || name}</span><br />{designSpec?.heroHeadline3 || "Style"}</h1>
                 <p className="text-base text-stone-500 mb-8 max-w-md leading-relaxed" style={{ fontFamily: `'${bodyFont}', sans-serif` }}>{heroSub}</p>
                 <Link href="#products" className="inline-block px-8 py-3.5 text-xs tracking-[0.2em] uppercase text-white transition-all hover:opacity-90" style={{ fontFamily: `'${bodyFont}', sans-serif`, backgroundColor: accent }}>{ctaText}</Link>
               </div>
@@ -164,7 +164,7 @@ export default async function Home() {
             <div className="grid md:grid-cols-2 gap-0 overflow-hidden" style={{ backgroundColor: accent + "18" }}>
               <div className="p-12 md:p-16 flex flex-col justify-center">
                 <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ fontFamily: `'${bodyFont}', sans-serif`, color: accent }}>The Edit</p>
-                <h2 className="text-3xl md:text-5xl font-light text-stone-900 leading-tight mb-6 tracking-tight">Effortless<br /><span className="italic">Elegance</span></h2>
+                <h2 className="text-3xl md:text-5xl font-light text-stone-900 leading-tight mb-6 tracking-tight">{designSpec?.editorialTitle1 || "Effortless"}<br /><span className="italic">{designSpec?.editorialTitle2 || "Elegance"}</span></h2>
                 <p className="text-sm text-stone-500 mb-8 max-w-sm leading-relaxed" style={{ fontFamily: `'${bodyFont}', sans-serif` }}>{designSpec?.description || settings?.description || "Curated pieces that transition seamlessly. Timeless designs crafted with care."}</p>
                 <div><Link href="#products" className="inline-block px-8 py-3 text-xs tracking-[0.2em] uppercase border text-stone-900 hover:text-white transition-all" style={{ fontFamily: `'${bodyFont}', sans-serif`, borderColor: accent, color: accent }}>Explore Collection</Link></div>
               </div>

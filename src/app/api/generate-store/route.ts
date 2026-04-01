@@ -129,7 +129,12 @@ Respond with ONLY valid JSON, no other text:
   "heroBannerText": "short hero text (max 5 words)",
   "heroSubtext": "one line of subtext for hero",
   "uspItems": ["4 short USP phrases"],
-  "ctaText": "call to action button text"
+  "ctaText": "call to action button text",
+  "heroHeadline1": "first word of 3-line hero headline (e.g. Discover, Explore, Savor)",
+  "heroHeadline2": "second word - the italic accent word (e.g. Premium, Fresh, Bold)",
+  "heroHeadline3": "third word (e.g. Style, Taste, Living)",
+  "editorialTitle1": "first word of editorial section (e.g. Effortless, Authentic)",
+  "editorialTitle2": "second italic word (e.g. Elegance, Craftsmanship)"
 }`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
