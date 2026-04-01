@@ -1,7 +1,5 @@
-import { Suspense } from "react";
-
-function PreviewContent() {
 "use client";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -29,7 +27,6 @@ function PreviewInner() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
       <div className="text-center" style={{ fontFamily: "Outfit, sans-serif" }}>
         <div className="inline-block animate-spin w-8 h-8 border-2 border-stone-300 border-t-stone-900 rounded-full mb-4" />
         <p className="text-sm text-stone-500">Loading your store preview...</p>
@@ -52,7 +49,6 @@ function PreviewInner() {
     <div className="min-h-screen" style={{ backgroundColor: "#FDFCFA" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
-      {/* Control Bar */}
       <div className="sticky top-0 z-[100] bg-stone-900 text-white" style={{ fontFamily: "Outfit, sans-serif" }}>
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -62,12 +58,11 @@ function PreviewInner() {
           </div>
           <div className="flex items-center gap-3">
             <a href="/onboard" className="px-4 py-1.5 text-xs tracking-[0.1em] uppercase border border-white/30 text-white/80 hover:bg-white/10 transition-colors">Edit</a>
-            <a href={previewUrl} target="_blank" className="px-5 py-1.5 text-xs tracking-[0.1em] uppercase bg-green-600 text-white hover:bg-green-700 transition-colors">✓ Go Live</a>
+            <a href={previewUrl} target="_blank" className="px-5 py-1.5 text-xs tracking-[0.1em] uppercase bg-green-600 text-white hover:bg-green-700 transition-colors">Go Live</a>
           </div>
         </div>
       </div>
 
-      {/* Design Spec Summary */}
       <div className="max-w-5xl mx-auto px-6 py-8" style={{ fontFamily: "Outfit, sans-serif" }}>
         <h2 className="text-xs tracking-[0.2em] uppercase text-stone-900 font-medium mb-6">AI-Generated Design</h2>
 
@@ -109,7 +104,6 @@ function PreviewInner() {
         <p className="text-xs text-stone-400 mb-4">Your live store preview:</p>
       </div>
 
-      {/* Iframe of actual store */}
       <div className="mx-4 mb-8 border-4 border-stone-200 rounded-lg overflow-hidden" style={{ height: "80vh" }}>
         <iframe src={previewUrl} className="w-full h-full" title="Store Preview" />
       </div>
@@ -117,10 +111,13 @@ function PreviewInner() {
   );
 }
 
-
 export default function PreviewPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}><div className="inline-block animate-spin w-8 h-8 border-2 border-stone-300 border-t-stone-900 rounded-full" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#FDFCFA" }}>
+        <div className="inline-block animate-spin w-8 h-8 border-2 border-stone-300 border-t-stone-900 rounded-full" />
+      </div>
+    }>
       <PreviewInner />
     </Suspense>
   );
