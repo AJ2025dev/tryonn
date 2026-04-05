@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function db() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     // Update order in Supabase
     if (order_id) {
-      await supabase
+      await db()
         .from("orders")
         .update({
           payment_reference_no: razorpay_payment_id,

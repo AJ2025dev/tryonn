@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function db() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
 export async function middleware(req: NextRequest) {
   const hostname = req.headers.get("host") || "";
@@ -23,7 +20,7 @@ export async function middleware(req: NextRequest) {
   let merchantId = process.env.NEXT_PUBLIC_DEFAULT_MERCHANT_ID || "1";
 
   if (subdomain && subdomain !== "www" && subdomain !== "appi-fy") {
-    const { data } = await supabase
+    const { data } = await db()
       .from("merchant_settings")
       .select("merchant_id")
       .eq("store_url", subdomain)

@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function db() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
-// Admin client for creating auth users
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function dbAdmin() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +34,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "An account with this email already exists." }, { status: 400 });
       }
 
-      const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      const { data: authData, error: authErr } = await dbAdmin().auth.admin.createUser({
         email: brief.email,
         password: brief.password,
         email_confirm: true,
@@ -49,7 +42,7 @@ export async function POST(req: NextRequest) {
 
       if (authErr) {
         // If admin API fails, try regular signup
-        const { data: signupData, error: signupErr } = await supabase.auth.signUp({
+        const { data: signupData, error: signupErr } = await db().auth.signUp({
           email: brief.email,
           password: brief.password,
         });
@@ -109,11 +102,11 @@ export async function POST(req: NextRequest) {
     if (settingsErr) throw new Error("Failed to save settings: " + settingsErr.message);
 
     // 7. Save MerchantBrief + DesignSpec
-    await supabase.from("merchant_briefs").insert({ merchant_id: merchant.id, brief_json: brief, status: "approved" });
-    await supabase.from("design_specs").insert({ merchant_id: merchant.id, spec_json: designSpec, status: "applied" });
+    await db().from("merchant_briefs").insert({ merchant_id: merchant.id, brief_json: brief, status: "approved" });
+    await db().from("design_specs").insert({ merchant_id: merchant.id, spec_json: designSpec, status: "applied" });
 
     // 8. Create banner
-    await supabase.from("banners").insert({
+    await db().from("banners").insert({
       merchant_id: merchant.id,
       name: designSpec.heroBannerText || `Welcome to ${brief.brandName}`,
       image_url: `https://placehold.co/1200x400/${designSpec.primaryColor.replace("#", "")}/${designSpec.textOnPrimary.replace("#", "")}?text=${encodeURIComponent(designSpec.heroBannerText || brief.brandName)}`,

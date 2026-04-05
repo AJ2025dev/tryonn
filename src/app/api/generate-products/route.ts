@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function db() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
 const CATEGORY_MAP: Record<string, string[]> = {
   fashion: ["Men", "Women", "Kids", "Accessories"],
@@ -31,7 +28,7 @@ export async function POST(req: NextRequest) {
     const categoryIds: number[] = [];
 
     for (const catName of categoryNames) {
-      const { data: cat } = await supabase
+      const { data: cat } = await db()
         .from("categories")
         .insert({ name: catName, parent_id: null, full_path: catName, is_active: true })
         .select("id")
@@ -39,7 +36,7 @@ export async function POST(req: NextRequest) {
       if (cat) {
         categoryIds.push(cat.id);
         // Link category to merchant
-        await supabase.from("merchant_categories").insert({
+        await db().from("merchant_categories").insert({
           merchant_id: merchantId,
           category_id: cat.id,
           is_default: true,
@@ -58,7 +55,7 @@ export async function POST(req: NextRequest) {
       // Assign to a category (round-robin)
       const catId = categoryIds[i % categoryIds.length] || null;
 
-      const { data: prod, error: prodErr } = await supabase
+      const { data: prod, error: prodErr } = await db()
         .from("products")
         .insert({
           merchant_id: merchantId,
@@ -89,10 +86,10 @@ export async function POST(req: NextRequest) {
         is_active: true,
       }));
 
-      await supabase.from("product_variants").insert(variants);
+      await db().from("product_variants").insert(variants);
 
       const color = primaryColor?.replace("#", "") || "8B6F4E";
-      await supabase.from("product_images").insert({
+      await db().from("product_images").insert({
         product_id: prod.id,
         image_url: `https://placehold.co/600x800/${color}/ffffff?text=${encodeURIComponent(product.name.split(" ").slice(0, 2).join("+"))}`,
         sort_order: 1,
@@ -103,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Create featured categories
     for (let i = 0; i < Math.min(categoryIds.length, 3); i++) {
-      await supabase.from("featured_categories").insert({
+      await db().from("featured_categories").insert({
         merchant_id: merchantId,
         category_id: categoryIds[i],
         seq_no: i + 1,
