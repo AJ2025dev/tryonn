@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const brief = await req.json();
 
     // 1. Check if store URL is taken
-    const { data: existing } = await supabase
+    const { data: existing } = await db()
       .from("merchant_settings")
       .select("id")
       .eq("store_url", brief.storeUrl)
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     let authUserId = null;
     if (brief.email && brief.password) {
       // Check if email already exists
-      const { data: existingEmail } = await supabase
+      const { data: existingEmail } = await db()
         .from("merchants")
         .select("id")
         .eq("email", brief.email)
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     const logoUrl = brief.logoUrl || `https://placehold.co/200x200/${designSpec.primaryColor.replace("#", "")}/${designSpec.textOnPrimary.replace("#", "")}?text=${encodeURIComponent(brief.brandName.substring(0, 2).toUpperCase())}`;
 
     // 5. Create merchant
-    const { data: merchant, error: merchantErr } = await supabase
+    const { data: merchant, error: merchantErr } = await db()
       .from("merchants")
       .insert({
         email: brief.email || `${brief.storeUrl}@appi-fy.ai`,
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     if (merchantErr) throw new Error("Failed to create merchant: " + merchantErr.message);
 
     // 6. Save merchant settings
-    const { error: settingsErr } = await supabase
+    const { error: settingsErr } = await db()
       .from("merchant_settings")
       .insert({
         merchant_id: merchant.id,
