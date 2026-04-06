@@ -224,7 +224,7 @@ export default function OnboardPage() {
                 <p className="text-xs tracking-[0.2em] uppercase text-stone-900 font-medium mb-4">Your Store Summary</p>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-stone-400">Brand</span><span className="text-stone-900">{form.brandName || "—"}</span></div>
-                  <div className="flex justify-between"><span className="text-stone-400">Category</span><span className="text-stone-900 capitalize">{form.category || "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-stone-400">Category</span><span className="text-stone-900 capitalize">{form.categories.join(", ") || "—"}</span></div>
                   <div className="flex justify-between"><span className="text-stone-400">Style</span><span className="text-stone-900 capitalize">{form.style || "—"}</span></div>
                   <div className="flex justify-between"><span className="text-stone-400">Logo</span><span className="text-stone-900">{logoFile ? "Uploaded" : "AI generated"}</span></div>
                   <div className="flex justify-between"><span className="text-stone-400">URL</span><span className="text-stone-900">{form.storeUrl || "—"}.appi-fy.ai</span></div>
