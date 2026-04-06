@@ -24,7 +24,16 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Create categories for this merchant's type
-    const categoryNames = CATEGORY_MAP[category] || CATEGORY_MAP["other"];
+    // Support multiple categories (comma-separated)
+    const categoryList = category.split(",").map((c: string) => c.trim()).filter(Boolean);
+    const categoryNames: string[] = [];
+    for (const cat of categoryList) {
+      const names = CATEGORY_MAP[cat] || [];
+      for (const n of names) {
+        if (!categoryNames.includes(n)) categoryNames.push(n);
+      }
+    }
+    if (categoryNames.length === 0) categoryNames.push(...(CATEGORY_MAP["other"] || ["General"]));
     const categoryIds: number[] = [];
 
     for (const catName of categoryNames) {

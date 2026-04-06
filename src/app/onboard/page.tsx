@@ -44,7 +44,7 @@ export default function OnboardPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [form, setForm] = useState({
-    brandName: "", tagline: "", category: "", style: "", audience: "",
+    brandName: "", tagline: "", categories: [] as string[], style: "", audience: "",
     colorPreference: "", description: "", storeUrl: "", logoUrl: "",
     email: "", password: "", phone: "",
   });
@@ -63,7 +63,7 @@ export default function OnboardPage() {
   function removeLogo() { setLogoFile(null); setLogoPreview(""); update("logoUrl", ""); }
 
   function nextStep() {
-    if (step === 1 && (!form.brandName.trim() || !form.category)) { setError("Please fill in your brand name and select a category"); return; }
+    if (step === 1 && (!form.brandName.trim() || form.categories.length === 0)) { setError("Please fill in your brand name and select at least one category"); return; }
     if (step === 2 && !form.style) { setError("Please select a design style"); return; }
     setError(""); setStep(step + 1);
   }
@@ -97,7 +97,7 @@ export default function OnboardPage() {
       const res = await fetch("/api/generate-store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, logoUrl }),
+        body: JSON.stringify({ ...form, category: form.categories.join(","), logoUrl }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -106,7 +106,7 @@ export default function OnboardPage() {
       await fetch("/api/generate-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantId: data.merchantId, brandName: form.brandName, category: form.category, style: form.style, primaryColor: data.designSpec.primaryColor }),
+        body: JSON.stringify({ merchantId: data.merchantId, brandName: form.brandName, category: form.categories.join(","), style: form.style, primaryColor: data.designSpec.primaryColor }),
       });
 
       setGeneratingStatus("Done! Redirecting...");
@@ -161,7 +161,7 @@ export default function OnboardPage() {
                   <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-stone-200 hover:border-stone-400 cursor-pointer rounded-lg"><div className="text-center"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 mx-auto mb-1 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span className="text-xs text-stone-400">Click to upload</span></div><input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoSelect} /></label>
                 )}
               </div>
-              <div><label className="block text-xs tracking-[0.1em] uppercase text-stone-700 font-medium mb-4">What do you sell? *</label><div className="grid grid-cols-3 gap-3">{CATEGORIES.map(cat => <button key={cat.id} onClick={() => update("category", cat.id)} className={`p-4 border text-left transition-all ${form.category === cat.id ? "border-stone-900 bg-stone-50" : "border-stone-200 hover:border-stone-400"}`}><span className="text-xl mb-2 block">{cat.icon}</span><span className="text-xs text-stone-700">{cat.label}</span></button>)}</div></div>
+              <div><label className="block text-xs tracking-[0.1em] uppercase text-stone-700 font-medium mb-4">What do you sell? * (select all that apply)</label><div className="grid grid-cols-3 gap-3">{CATEGORIES.map(cat => <button key={cat.id} onClick={() => setForm(prev => ({ ...prev, categories: prev.categories.includes(cat.id) ? prev.categories.filter((c: string) => c !== cat.id) : [...prev.categories, cat.id] }))} className={`p-4 border text-left transition-all ${form.categories.includes(cat.id) ? "border-stone-900 bg-stone-50" : "border-stone-200 hover:border-stone-400"}`}><span className="text-xl mb-2 block">{cat.icon}</span><span className="text-xs text-stone-700">{cat.label}</span></button>)}</div></div>
             </div>
           </div>
         )}
