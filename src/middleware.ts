@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
   if (!subdomain || subdomain === "www" || subdomain === "appi-fy") {
     // Allow platform pages through without merchant context
     if (
-      path.startsWith("/onboard") ||
+      path.startsWith("/onboard") || path.startsWith("/admin") ||
       path.startsWith("/dashboard") ||
       path.startsWith("/api") ||
       path.startsWith("/store-not-found") ||
@@ -46,8 +46,9 @@ export async function middleware(req: NextRequest) {
   }
 
   const merchantId = String(data.merchant_id);
-  const res = NextResponse.next();
-  res.headers.set("x-merchant-id", merchantId);
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-merchant-id", merchantId);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.cookies.set("merchant-id", merchantId, { path: "/" });
   return res;
 }

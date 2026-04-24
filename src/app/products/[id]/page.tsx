@@ -8,7 +8,7 @@ import ImageGallery from "./ImageGallery";
 
 async function getProduct(id: number, merchantId: number) {
   const sb = createServerClient();
-  const { data, error } = await sb.from("products").select("id, name, description, brand, is_new, category_id, product_variants(id, price, discount, discount_type, size, stock), product_images(id, image_url, sort_order)").eq("id", id).single();
+  const { data, error } = await sb.from("products").select("id, name, description, brand, is_new, category_id, product_variants(id, price, discount, discount_type, size, stock), product_images(id, image_url, sort_order)").eq("id", id).eq("merchant_id", merchantId).single();
   const settings = await sb.from("merchant_settings").select("app_name, primary_color, logo, short_description").eq("merchant_id", merchantId).single();
   const category = data?.category_id ? await sb.from("categories").select("name, full_path").eq("id", data.category_id).single() : null;
   return { product: data, settings: settings.data, category: category?.data, error: error?.message };

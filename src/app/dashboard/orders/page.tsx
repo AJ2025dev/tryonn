@@ -52,10 +52,11 @@ export default function OrdersPage() {
 
   async function updateStatus(orderId: number, status: number) {
     const statusObj = STATUSES.find(s => s.value === status);
+    const mid = getMerchantIdClient();
     await supabase.from("orders").update({
       status,
       status_description: statusObj?.label || "Updated",
-    }).eq("id", orderId);
+    }).eq("id", orderId).eq("merchant_id", mid);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, status_description: statusObj?.label } : o));
   }
 

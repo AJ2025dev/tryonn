@@ -27,15 +27,17 @@ export default function ProductsPage() {
   }
 
   async function toggleActive(id: number, isActive: boolean) {
-    await supabase.from("products").update({ is_active: !isActive }).eq("id", id);
+    const mid = getMerchantIdClient();
+    await supabase.from("products").update({ is_active: !isActive }).eq("id", id).eq("merchant_id", mid);
     setProducts(prev => prev.map(p => p.id === id ? { ...p, is_active: !isActive } : p));
   }
 
   async function deleteProduct(id: number) {
     if (!confirm("Delete this product? This cannot be undone.")) return;
+    const mid = getMerchantIdClient();
     await supabase.from("product_images").delete().eq("product_id", id);
     await supabase.from("product_variants").delete().eq("product_id", id);
-    await supabase.from("products").delete().eq("id", id);
+    await supabase.from("products").delete().eq("id", id).eq("merchant_id", mid);
     setProducts(prev => prev.filter(p => p.id !== id));
   }
 

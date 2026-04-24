@@ -26,6 +26,15 @@ export default function InventoryPage() {
   }
 
   async function updateStock(variantId: number, newStock: number) {
+    const mid = getMerchantIdClient();
+    // Verify this variant belongs to a product owned by this merchant
+    const { data: variant } = await supabase
+      .from("product_variants")
+      .select("id, product_id, products!inner(merchant_id)")
+      .eq("id", variantId)
+      .eq("products.merchant_id", mid)
+      .single();
+    if (!variant) return;
     await supabase.from("product_variants").update({ stock: newStock }).eq("id", variantId);
     setProducts(prev => prev.map(p => ({
       ...p,

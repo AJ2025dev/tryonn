@@ -44,13 +44,6 @@ export async function POST(req: NextRequest) {
         .single();
       if (cat) {
         categoryIds.push(cat.id);
-        // Link category to merchant
-        await db().from("merchant_categories").insert({
-          merchant_id: merchantId,
-          category_id: cat.id,
-          is_default: true,
-          is_active: true,
-        });
       }
     }
 
