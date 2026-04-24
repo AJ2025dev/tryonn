@@ -3,7 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 
 function db() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
 
-function dbAdmin() { return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!); }
+function dbAdmin() {
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log(`[onboard:auth] dbAdmin() using ${hasServiceKey ? "service_role key" : "FALLBACK anon key (SUPABASE_SERVICE_ROLE_KEY not set)"}`);
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,18 +45,28 @@ export async function POST(req: NextRequest) {
       });
 
       if (authErr) {
-        // If admin API fails, try regular signup
+        console.error("[onboard:auth] admin.createUser() FAILED:", { name: authErr.name, message: authErr.message, status: (authErr as any).status, code: (authErr as any).code });
         const { data: signupData, error: signupErr } = await db().auth.signUp({
           email: brief.email,
           password: brief.password,
         });
         if (signupErr) {
+          console.error("[onboard:auth] fallback signUp() also FAILED:", { name: signupErr.name, message: signupErr.message, status: (signupErr as any).status });
           return NextResponse.json({ error: "Failed to create account: " + signupErr.message }, { status: 400 });
         }
+        console.log("[onboard:auth] fallback signUp() result:", { hasUser: !!signupData.user, userId: signupData.user?.id?.substring(0, 8) ?? "none", hasSession: !!signupData.session });
         authUserId = signupData.user?.id || null;
       } else {
+        console.log("[onboard:auth] admin.createUser() succeeded, userId:", authData.user?.id?.substring(0, 8) ?? "none");
         authUserId = authData.user?.id || null;
       }
+    } else {
+      console.warn("[onboard:auth] auth block SKIPPED — email:", !!brief.email, "password:", !!brief.password);
+    }
+
+    console.log("[onboard:auth] final authUserId before merchant insert:", authUserId ? authUserId.substring(0, 8) + "..." : "NULL");
+    if (!authUserId) {
+      return NextResponse.json({ error: "Authentication setup failed — merchant not created. Please retry or contact support." }, { status: 500 });
     }
 
     // 3. Call Claude API to generate DesignSpec
