@@ -8,7 +8,6 @@ const NAV = [
   { href: "/dashboard/products", label: "Products", icon: "\u25C8" },
   { href: "/dashboard/orders", label: "Orders", icon: "\u25C7" },
   { href: "/dashboard/inventory", label: "Inventory", icon: "\u25A4" },
-  { href: "/dashboard/settings", label: "Settings", icon: "\u2699" },
 ];
 
 interface DashboardShellProps {
@@ -35,6 +34,7 @@ export default function DashboardShell({ children, merchantId, userEmail, settin
     );
     await supabase.auth.signOut();
     router.push("/dashboard/login");
+    router.refresh();
   }
 
   return (
