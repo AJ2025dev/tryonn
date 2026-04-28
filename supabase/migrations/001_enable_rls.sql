@@ -45,6 +45,20 @@
 --
 -- DO NOT EXECUTE this migration until the above prerequisites are met.
 -- Running it prematurely will break the app.
+--
+-- REMAINING KNOWN ISSUES (Phase 4+)
+-- ----------------------------------
+-- 1. featured_categories.merchant_id not yet verified — may need index
+--    removed if column doesn't exist (similar to categories fix).
+-- 2. order_items has no INSERT policy — checkout will need a server-side
+--    write (service role) or an anon INSERT policy added here.
+-- 3. No DELETE policy on merchants — intentional: merchants should not
+--    be able to self-delete. Deletion is an admin/support action via
+--    service role only.
+-- 4. Anon SELECT on orders is currently permissive (USING true) — must
+--    be tightened or removed once checkout moves to server-side (Phase 4).
+-- 5. addresses anon SELECT may also be needed for the current checkout
+--    .insert().select() pattern — not yet added. Defer to Phase 4.
 -- ============================================================================
 
 
@@ -177,7 +191,23 @@ DO $$ BEGIN
   DROP POLICY IF EXISTS "Checkout: anon can insert orders" ON public.orders;
   CREATE POLICY "Checkout: anon can insert orders"
     ON public.orders FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (
+      merchant_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM public.merchants WHERE id = merchant_id)
+    );
+END $$;
+
+-- orders (SELECT after INSERT) -------------------------------------------
+-- Checkout calls .insert(...).select("id").single() which needs SELECT
+-- to return the newly created row. Without auth we can't scope tightly,
+-- but this is acceptable: order data is not sensitive to other anon users
+-- (they'd need to guess the UUID/id). Phase 4 (customer auth) will
+-- replace this with a session-scoped policy.
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Checkout: anon can read orders" ON public.orders;
+  CREATE POLICY "Checkout: anon can read orders"
+    ON public.orders FOR SELECT
+    USING (true);
 END $$;
 
 -- order_items ------------------------------------------------------------
@@ -221,7 +251,14 @@ DO $$ BEGIN
     WITH CHECK (auth_user_id = auth.uid());
 END $$;
 
--- merchant_settings (UPDATE) ---------------------------------------------
+-- merchant_settings (INSERT/UPDATE) --------------------------------------
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Dashboard: merchant can insert own settings" ON public.merchant_settings;
+  CREATE POLICY "Dashboard: merchant can insert own settings"
+    ON public.merchant_settings FOR INSERT
+    WITH CHECK (merchant_id = public.get_my_merchant_id());
+END $$;
+
 DO $$ BEGIN
   DROP POLICY IF EXISTS "Dashboard: merchant can update own settings" ON public.merchant_settings;
   CREATE POLICY "Dashboard: merchant can update own settings"
@@ -420,12 +457,32 @@ END $$;
 
 
 -- ============================================================================
--- 7. ADDRESSES -- no public read
+-- 7. ADDRESSES
 -- ============================================================================
--- Addresses are inserted by anonymous customers at checkout but should
--- not be broadly readable. Merchants can read addresses for their orders
--- if needed (requires a join through orders; omitted here for simplicity).
--- For now, no SELECT policy for anon or merchants on addresses.
+-- Addresses use a polymorphic link_type/link_id pattern:
+--   link_type = 'order'    → link_id = orders.id
+--   link_type = 'customer' → link_id = orders.customer_id
+-- Merchants can read addresses linked to their own orders.
+-- No anon SELECT (customers don't need to read back addresses after insert).
+
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Dashboard: merchant can read addresses on own orders" ON public.addresses;
+  CREATE POLICY "Dashboard: merchant can read addresses on own orders"
+    ON public.addresses FOR SELECT
+    USING (
+      (link_type = 'order' AND EXISTS (
+        SELECT 1 FROM public.orders
+        WHERE orders.id = addresses.link_id
+          AND orders.merchant_id = public.get_my_merchant_id()
+      ))
+      OR
+      (link_type = 'customer' AND EXISTS (
+        SELECT 1 FROM public.orders
+        WHERE orders.customer_id = addresses.link_id
+          AND orders.merchant_id = public.get_my_merchant_id()
+      ))
+    );
+END $$;
 
 
 -- ============================================================================
@@ -464,8 +521,7 @@ CREATE INDEX IF NOT EXISTS idx_design_specs_merchant_id
 CREATE INDEX IF NOT EXISTS idx_merchant_briefs_merchant_id
   ON public.merchant_briefs (merchant_id);
 
-CREATE INDEX IF NOT EXISTS idx_categories_merchant_id
-  ON public.categories (merchant_id);
+-- categories has no merchant_id column (categories are global), so no index needed.
 
 CREATE INDEX IF NOT EXISTS idx_featured_categories_merchant_id
   ON public.featured_categories (merchant_id);
@@ -507,5 +563,4 @@ CREATE INDEX IF NOT EXISTS idx_featured_categories_merchant_id
 --   DROP INDEX IF EXISTS idx_banners_merchant_id;
 --   DROP INDEX IF EXISTS idx_design_specs_merchant_id;
 --   DROP INDEX IF EXISTS idx_merchant_briefs_merchant_id;
---   DROP INDEX IF EXISTS idx_categories_merchant_id;
 --   DROP INDEX IF EXISTS idx_featured_categories_merchant_id;
