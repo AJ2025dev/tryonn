@@ -130,7 +130,7 @@ export default function AdminLoginPage() {
         {/* Footer link */}
         <div className="text-center mt-6">
           <a
-            href="/dashboard/login"
+            href="/login"
             className="text-sm text-slate-500 hover:text-slate-700 transition"
           >
             Merchant? Sign in here →

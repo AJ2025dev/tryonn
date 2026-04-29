@@ -46,27 +46,15 @@ export async function getCurrentMerchant() {
 
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
-  console.log("[getCurrentMerchant] getUser result:", {
-    hasUser: !!user,
-    userId: user?.id?.substring(0, 8) ?? "none",
-    email: user?.email ?? "none",
-    error: userError?.message ?? null,
-  });
   if (!user) return null;
 
   // Primary lookup: auth_user_id linkage
-  const { data: merchant, error: merchantError } = await supabase
+  const { data: merchant } = await supabase
     .from("merchants")
     .select("id, email, first_name, is_active")
     .eq("auth_user_id", user.id)
     .single();
-  console.log("[getCurrentMerchant] auth_user_id lookup:", {
-    found: !!merchant,
-    merchantId: merchant?.id ?? null,
-    error: merchantError?.message ?? null,
-  });
 
   if (merchant) {
     return {
@@ -79,17 +67,11 @@ export async function getCurrentMerchant() {
   // Defensive fallback: match by email for legacy data where
   // auth_user_id was never written (pre-Apr 2026 merchants).
   // Backfills auth_user_id so this path runs at most once per merchant.
-  const { data: merchantByEmail, error: emailError } = await supabase
+  const { data: merchantByEmail } = await supabase
     .from("merchants")
     .select("id, email, first_name, is_active")
     .eq("email", user.email!)
     .single();
-  console.log("[getCurrentMerchant] email fallback lookup:", {
-    found: !!merchantByEmail,
-    merchantId: merchantByEmail?.id ?? null,
-    email: user.email,
-    error: emailError?.message ?? null,
-  });
 
   if (merchantByEmail) {
     await supabase
@@ -104,19 +86,18 @@ export async function getCurrentMerchant() {
     };
   }
 
-  console.warn("[getCurrentMerchant] no merchant found for user:", user.id.substring(0, 8), user.email);
   return null;
 }
 
 /**
- * Requires an authenticated merchant. Redirects to /dashboard/login
+ * Requires an authenticated merchant. Redirects to /login
  * if no session or no linked merchant. Use in server components and
  * layouts that must be protected.
  */
 export async function requireMerchant() {
   const result = await getCurrentMerchant();
   if (!result) {
-    redirect("/dashboard/login");
+    redirect("/login");
   }
   return result;
 }

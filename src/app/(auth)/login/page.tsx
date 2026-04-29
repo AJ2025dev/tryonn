@@ -39,7 +39,7 @@ export default function LoginPage() {
     if (!email) { setError("Enter your email address"); return; }
     setError(""); setLoading(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/dashboard/login`,
+      redirectTo: `${window.location.origin}/login`,
     });
     if (err) { setError(err.message); setLoading(false); return; }
     setMessage("Password reset link sent to your email.");
@@ -114,7 +114,7 @@ export default function LoginPage() {
 
         <div className="mt-8 text-center">
           <p className="text-xs text-stone-300">Don't have a store yet?</p>
-          <a href="/onboard" className="text-xs text-stone-500 hover:text-stone-900 font-medium">Create one with AI →</a>
+          <a href="/onboard" className="text-xs text-stone-500 hover:text-stone-900 font-medium">Create one with AI &rarr;</a>
         </div>
       </div>
     </div>

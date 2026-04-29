@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   if (!subdomain || subdomain === "www" || subdomain === "appi-fy") {
     if (
       path.startsWith("/onboard") || path.startsWith("/admin") ||
-      path.startsWith("/dashboard") ||
+      path.startsWith("/dashboard") || path.startsWith("/login") ||
       path.startsWith("/api") ||
       path.startsWith("/store-not-found") ||
       path === "/landing"

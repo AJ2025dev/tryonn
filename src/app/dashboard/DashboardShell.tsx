@@ -33,7 +33,7 @@ export default function DashboardShell({ children, merchantId, userEmail, settin
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     await supabase.auth.signOut();
-    router.push("/dashboard/login");
+    router.push("/login");
     router.refresh();
   }
 
