@@ -37,6 +37,9 @@ type CreateOrderBody = {
   customer_id?: number | null;
 };
 
+// E.164: + followed by 10–15 digits, no leading zero after +.
+const E164_RE = /^\+[1-9]\d{9,14}$/;
+
 function generateOrderNo() {
   // Format: ORD-{6 alphanumeric chars from random bytes}-{6 chars from timestamp base36}
   // Example: ORD-A3F7K9-MQ8RTL
@@ -91,8 +94,8 @@ function validate(
     if (typeof cust.first_name !== "string" || !cust.first_name.trim()) {
       errors["customer.first_name"] = "required";
     }
-    if (typeof cust.mobile_no !== "string" || !cust.mobile_no.trim()) {
-      errors["customer.mobile_no"] = "required";
+    if (typeof cust.mobile_no !== "string" || !E164_RE.test(cust.mobile_no)) {
+      errors["customer.mobile_no"] = "must be E.164 format (e.g., +919876543210)";
     }
   }
 
