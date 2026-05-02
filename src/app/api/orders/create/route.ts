@@ -320,7 +320,9 @@ export async function POST(request: NextRequest) {
         rzpParams as Parameters<ReturnType<typeof rzp>["orders"]["create"]>[0]
       )) as { id: string };
     } catch (rzpErr) {
-      const msg = rzpErr instanceof Error ? rzpErr.message : String(rzpErr);
+      // Razorpay SDK throws plain objects, not Error instances. Log the full
+      // structure so we can debug auth issues, malformed params, etc.
+      const msg = rzpErr instanceof Error ? rzpErr.message : JSON.stringify(rzpErr);
       console.error("[checkout:create] razorpay error", msg);
       return NextResponse.json(
         { error: "Failed to create payment order", code: "razorpay_error" },
